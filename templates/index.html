@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Demonstration of ChatGPT API in a Python Flask Application. A Skolo Online course.">
+
+  <title>IBA Chatbot</title>
+  <audio id="notificationSound">
+      <source src="{{ url_for('static', filename='sound/notification.mp3') }}" type="audio/mpeg">
+  </audio>
+  <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/iba_logo.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://drive.google.com/uc?export=view&id=1yTLwNiCZhIdCWolQldwq4spHQkgZDqkG">
+  <style>
+    body {
+      font-family: 'Manrope', sans-serif;
+      margin: 0;
+      background: linear-gradient(135deg, #1a1f35 0%, #2d3748 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2.8rem;
+      font-weight: 700;
+      text-align: center;
+      margin: 2rem 0;
+      background: linear-gradient(90deg, #60a5fa, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: fadeIn 0.8s ease-out;
+    }
+
+    /* تحديث منتقي النموذج */
+    .model-selector {
+      margin: 20px auto;
+      max-width: 300px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .form-select {
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      color: #fff;
+      padding: 15px 20px;
+      width: 100%;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .form-select:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .form-select:focus {
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+    }
+
+    .form-select option {
+      background: #1a1f35;
+      color: #fff;
+      padding: 15px;
+      font-size: 1.1rem;
+    }
+
+    /* تحديث قائمة الدردشة */
+    #chat-list {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 25px;
+      padding: 20px;
+      margin: 20px 0;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      height: calc(100vh - 300px);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    }
+
+    #chat-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #chat-list::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+
+    /* تحديث الرسائل */
+    .list-group-item, .chat-response {
+      background: rgba(255, 255, 255, 0.08) !important;
+      border: none !important;
+      border-radius: 20px !important;
+      margin-bottom: 15px;
+      transition: all 0.3s ease;
+      animation: slideIn 0.3s ease-out;
+      backdrop-filter: blur(5px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .list-group-item:hover, .chat-response:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    /* تحديث شريط الإدخال */
+    .input-group {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 40px);
+      max-width: 960px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px !important;
+      border-radius: 25px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+    }
+
+    #chat-input {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      color: #fff;
+      padding: 15px 20px;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+    }
+
+    #chat-input:focus {
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    #gpt-button {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+      margin-left: 10px;
+    }
+
+    #gpt-button:hover {
+      background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+    }
+
+    /* تحديث أزرار التقييم */
+    .rating-buttons {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .btn-rating {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      padding: 8px 15px;
+      border-radius: 15px;
+      color: #fff;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(5px);
+    }
+
+    .btn-rating:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-rating.like:hover {
+      background: rgba(16, 185, 129, 0.2);
+    }
+
+    .btn-rating.dislike:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    /* تأثيرات الحركة */
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* تحسينات للموبايل */
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      .form-select, #chat-input {
+        font-size: 1rem;
+        padding: 12px 15px;
+      }
+
+      #gpt-button {
+        padding: 12px 20px;
+        font-size: 1rem;
+      }
+
+      .input-group {
+        padding: 10px !important;
+      }
+    }
+  </style>
+
+</head>
+
+<body class="w-lg-50 w-md-75 w-sm-100 py-3">
+  <main class="flex-shrink-0">
+    <div class="container">
+      <h1>IBA Chatbot</h1>
+      <div class="model-selector">
+        <select id="ai-model" class="form-select">
+          <option value="gemini">Google Gemini</option>
+          <option value="openai">OpenAI GPT</option>
+        </select>
+      </div>
+      <div id="chat-list" class="list-group w-auto">
+      </div>
+      <div class="input-group">
+        <input type="text" id="chat-input" class="form-control" placeholder="اكتب رسالتك هنا...">
+        <button class="btn" id="gpt-button">إرسال</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://code.jquery.com/jquery-3.6.3.min.js"
+    integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous">
+  </script>
+
+  <script>
+    $(document).ready(function() {
+      $("#gpt-button").click(function () {
+        var question = $("#chat-input").val();
+        const selectedModel = $("#ai-model").val();  // Get selected model
+        
+        if (!question.trim()) return;  // Don't send empty messages
+        
+        let html_data = `<div class="list-group-item">
+            <div class="d-flex gap-3 py-3">
+              <img src="https://w7.pngwing.com/pngs/178/595/png-transparent-user-profile-computer-icons-login-user-avatars-thumbnail.png"
+                alt="user" width="32" height="32" class="rounded-circle flex-shrink-0">
+              <div class="d-flex gap-2 w-100">
+                <p class="mb-0 opacity-75">${question}</p>
+              </div>
+            </div>
+          </div>`;
+
+        $("#chat-list").append(html_data);
+        $("#chat-input").val("");
+
+        $.ajax({
+          url: '/chat',  // New endpoint
+          method: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({
+            message: question,
+            model: selectedModel  // Send selected model
+          }),
+          success: function (data) {
+            const sound = document.getElementById('notificationSound');
+            sound.currentTime = 0;
+            sound.play().catch(function(error) {
+              console.log("Error playing sound:", error);
+            });
+            
+            let gpt_data = `<div class="chat-response">
+              <div class="d-flex gap-3 py-3">
+                <img src="{{ url_for('static', filename='images/iba_logo.png') }}" 
+                  alt="assistant" width="32" height="32" class="rounded-circle flex-shrink-0">
+                <div class="d-flex gap-2 w-100 justify-content-between">
+                  <div class="response-content">${data.response}</div>
+                  <div class="rating-buttons">
+                    <button class="btn-rating like">👍</button>
+                    <button class="btn-rating dislike">👎</button>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+            
+            $("#chat-list").append(gpt_data);
+            $("#chat-list").scrollTop($("#chat-list")[0].scrollHeight);
+          },
+          error: function (xhr, status, error) {
+            console.error("Error:", error);
+            let errorMessage = `<div class="chat-response">
+              <div class="d-flex gap-3 py-3">
+                <img src="{{ url_for('static', filename='images/iba_logo.png') }}" 
+                  alt="assistant" width="32" height="32" class="rounded-circle flex-shrink-0">
+                <div class="d-flex gap-2 w-100">
+                  <div class="response-content text-danger">عذراً، حدث خطأ في معالجة طلبك. يرجى المحاولة مرة أخرى.</div>
+                </div>
+              </div>
+            </div>`;
+            $("#chat-list").append(errorMessage);
+            $("#chat-list").scrollTop($("#chat-list")[0].scrollHeight);
+          }
+        });
+      });
+
+      // Keep existing event handlers
+    });
+  </script>
+</body>
+
+</html>
